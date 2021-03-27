@@ -58,7 +58,7 @@ class BlokusCornersProblem(SearchProblem):
     def __init__(self, board_w, board_h, piece_list, starting_point=(0, 0)):
         self.expanded = 0
         self.board = Board(board_w, board_h, 1, piece_list, starting_point)
-        self.targets = [[0, board_h - 1], [0, 0], [board_w - 1, 0], [board_w - 1, board_h - 1]]
+        self.targets = [[board_h - 1, 0], [0, 0], [0, board_w - 1], [board_h - 1, board_w - 1]]
         "*** YOUR CODE HERE ***"
 
     def get_start_state(self):
@@ -69,7 +69,7 @@ class BlokusCornersProblem(SearchProblem):
 
     def is_goal_state(self, state):
         for target in self.targets:
-            if state.get_position(target[0], target[1]) == -1:
+            if state.get_position(target[1], target[0]) == -1:
                 return False
         return True
 
@@ -114,12 +114,13 @@ def blokus_corners_heuristic(state, problem):
     """
     "*** YOUR CODE HERE ***"
     cost = 0
-    limit = int(state.board_h / 2)
+    limit = min(state.board_h, state.board_w)
+    limit = int(np.round(limit / 2))
     to_comp = np.full((limit, limit), -1)
     for target in problem.targets:
-        if state.get_position(target[0], target[1]) != -1:
+        if state.get_position(target[1], target[0]) != -1:
             continue
-        corner = get_corner(limit, target, state)  # TODO different height and width
+        corner = get_corner(limit, target, state)
         if np.array_equal(corner, to_comp):
             cost += limit
         else:
@@ -128,58 +129,19 @@ def blokus_corners_heuristic(state, problem):
 
 
 def get_corner(limit, start, state):
-    height = 0
-    width = 0
-    if start[0] == 0:
+    height = state.board_h
+    width = state.board_w
+    x = start[0]
+    y = start[1]
+    if x == 0:
         height = (0, 0 + limit)
     else:
         height = (start[0] - limit, start[0])
-    if start[1] == 0:
+    if y == 0:
         width = (0, 0 + limit)
     else:
         width = (start[0] - limit, start[0])
     return state.state[height[0]:height[1], width[0]:width[1]]
-
-
-def bfs(state, start, height, width):
-    fringe = util.Queue()
-    start = tuple(start)
-    visited = set()  # states visites
-    dists = dict()  # son state to father state
-    fringe.push(start)
-    dists[start] = 0
-    visited.add(start)
-    while not fringe.isEmpty():
-        cur_coordinate = fringe.pop()
-        if state.get_position(cur_coordinate[0], cur_coordinate[1]) != -1:
-            return dists[cur_coordinate]
-        for neighbor in get_adjacent_tiles(cur_coordinate, height, width):
-            if neighbor not in visited:
-                visited.add(neighbor)
-                fringe.push(neighbor)
-                dists[neighbor] = dists[cur_coordinate] + 1
-
-
-def get_adjacent_tiles(coordinates, height, width):
-    x, y = coordinates
-    tiles = set()
-    if x + 1 < width:
-        tiles.add((x + 1, y))
-        if y + 1 < height:
-            tiles.add((x + 1, y + 1))
-            tiles.add((x, y + 1))
-        if y - 1 >= 0:
-            tiles.add((x + 1, y - 1))
-            tiles.add((x, y - 1))
-    if x - 1 >= 0:
-        tiles.add((x - 1, y))
-        if y + 1 < height:
-            tiles.add((x - 1, y + 1))
-            tiles.add((x, y + 1))
-        if y - 1 >= 0:
-            tiles.add((x - 1, y - 1))
-            tiles.add((x, y - 1))
-    return tiles
 
 
 class BlokusCoverProblem(SearchProblem):
@@ -197,7 +159,10 @@ class BlokusCoverProblem(SearchProblem):
 
     def is_goal_state(self, state):
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        for target in self.targets:
+            if state.get_position(target[1], target[0]) == -1:
+                return False
+        return True
 
     def get_successors(self, state):
         """
@@ -220,13 +185,33 @@ class BlokusCoverProblem(SearchProblem):
         This method returns the total cost of a particular sequence of actions.  The sequence must
         be composed of legal moves
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        cost = 0
+        for action in actions:
+            cost += action.piece.num_tiles
+        return cost
 
 
 def blokus_cover_heuristic(state, problem):
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    cost = 0
+    limit = min(state.board_h, state.board_w)
+    limit = int(np.round(limit / 2))
+    for target in problem.targets:
+        if state.get_position(target[0], target[1]) != -1:
+            continue
+        block = get_block(limit, target, state)
+        to_comp = np.full(block.shape, -1)
+        if np.array_equal(block, to_comp):
+            cost += min(block.shape[0], block.shape[1])
+        else:
+            cost += 1
+    return cost
+
+def get_block(limit, start, state):
+    x_1 = max(0, start[0] - limit)
+    x_2 = min(state.board_w, start[0] + limit)
+    y_1 = max(0, start[1] - limit)
+    y_2 = min(state.board_h, start[1] + limit)
+    return state.state[y_1:y_2, x_1:x_2]
 
 
 class ClosestLocationSearch:

@@ -81,8 +81,6 @@ def uniform_cost_search(problem):
     """
     Search the node of least total cost first.
     """
-    "*** YOUR CODE HERE ***"
-    state_set = set()
     actions = []
     prev = dict()  # son state to father state
     costs = dict()
@@ -98,12 +96,12 @@ def uniform_cost_search(problem):
             actions.reverse()
             return actions
         for suc in problem.get_successors(cur_state):  # expand graph
-            if suc[0] not in state_set:
-                state_set.add(suc[0])
+            if suc[0] not in prev:
+                prev[suc[0]] = (cur_state, suc[1])
                 cost = costs[cur_state] + suc[2]
                 costs[suc[0]] = cost
                 fringe.push(suc[0], cost)
-                prev[suc[0]] = (cur_state, suc[1])
+
 
 
 def null_heuristic(state, problem=None):
@@ -119,13 +117,13 @@ def a_star_search(problem, heuristic=null_heuristic):
     Search the node that has the lowest combined cost and heuristic first.
     """
     "*** YOUR CODE HERE ***"
-    state_set = set()
     actions = []
     prev = dict()  # son state to father state
     costs = dict()
     fringe = util.PriorityQueue()
     fringe.push(problem.get_start_state(), 0)
     costs[problem.get_start_state()] = 0
+    prev[problem.get_start_state()] = None
     while not fringe.isEmpty():
         cur_state = fringe.pop()
         if problem.is_goal_state(cur_state):
@@ -135,32 +133,33 @@ def a_star_search(problem, heuristic=null_heuristic):
             actions.reverse()
             return actions
         for suc in problem.get_successors(cur_state):  # expand graph
-            if suc[0] not in state_set:
-                state_set.add(suc[0])
+            if suc[0] not in prev:
                 cost = costs[cur_state] + suc[2]
                 costs[suc[0]] = cost
                 fringe.push(suc[0], cost + heuristic(suc[0], problem))
                 prev[suc[0]] = (cur_state, suc[1])
+    return actions
 
 
 def search(problem, fringe):
-    state_set = set()  # states visites
     actions = []
     prev = dict()  # son state to father state
-    fringe.push(problem.get_start_state())
+    start_state = problem.get_start_state()
+    fringe.push(start_state)
+    prev[start_state] = None
     while not fringe.isEmpty():
         cur_state = fringe.pop()
         if problem.is_goal_state(cur_state):
-            while not cur_state == problem.get_start_state():  # build actions list from goal state
+            while not cur_state == start_state:  # build actions list from goal state
                 cur_state, cur_move = prev[cur_state]
                 actions.append(cur_move)
             actions.reverse()
             return actions
         for suc in problem.get_successors(cur_state):  # expand graph
-            if suc[0] not in state_set:
-                state_set.add(suc[0])
-                fringe.push(suc[0])
+            if suc[0] not in prev:
                 prev[suc[0]] = (cur_state, suc[1])
+                fringe.push(suc[0])
+
 
 
 
