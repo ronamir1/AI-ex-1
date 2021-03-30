@@ -113,20 +113,19 @@ def blokus_corners_heuristic(state, problem):
     inadmissible or inconsistent heuristics may find optimal solutions, so be careful.
     """
     "*** YOUR CODE HERE ***"
-    return blokus_cover_heuristic(state, problem)
-    # cost = 0
-    # limit = min(state.board_h, state.board_w)
-    # limit = int(np.round(limit / 2))
-    # to_comp = np.full((limit, limit), -1)
-    # for target in problem.targets:
-    #     if state.get_position(target[1], target[0]) != -1:
-    #         continue
-    #     corner = get_corner(limit, target, state)
-    #     if np.array_equal(corner, to_comp):
-    #         cost += limit
-    #     else:
-    #         cost += 1
-    # return cost
+    cost = 0
+    limit = min(state.board_h, state.board_w)
+    limit = int(np.round(limit / 2))
+    to_comp = np.full((limit, limit), -1)
+    for target in problem.targets:
+        if state.get_position(target[1], target[0]) != -1:
+            continue
+        corner = get_corner(limit, target, state)
+        if np.array_equal(corner, to_comp):
+            cost += limit
+        else:
+            cost += 1
+    return cost
 
 
 def get_corner(limit, start, state):
@@ -150,7 +149,6 @@ class BlokusCoverProblem(SearchProblem):
         self.targets = targets.copy()
         self.expanded = 0
         self.board = Board(board_w, board_h, 1, piece_list, starting_point)
-        self.to_add = self.targets_dist()
         "*** YOUR CODE HERE ***"
 
     def get_start_state(self):
@@ -207,23 +205,45 @@ class BlokusCoverProblem(SearchProblem):
 
 def blokus_cover_heuristic(state, problem):
     cost = 0
+    to_add = len(problem.targets) - 1
     max_dist = max(state.board_w, state.board_h)
     for target in problem.targets:
         if state.get_position(target[0], target[1]) != -1:
+            to_add -= 1
             continue
         dist = min_distance(target, state, max_dist)
         cost = max(cost, dist)
-    return cost
+    return cost + to_add
 
+
+def max_distance(targets, state, max_dist):
+    cords = np.where(state.state != -1)
+    min_dist = [max_dist] * len(targets)
+    for i in range(len(cords[0])):
+        for j, target in enumerate(targets):
+            min_dist[j] = min(abs(targets[j][0] - cords[0][i]), abs(targets[j][1] - cords[1][i]), min_dist[j])
+    return max(min_dist)
 
 def min_distance(target, state, max_dist):
     cords = np.where(state.state != -1)
-    x_goal = target[0]
-    y_goal = target[1]
     min_dist = max_dist
     for i in range(len(cords[0])):
-        min_dist = min(abs(x_goal - cords[0][i]), abs(y_goal - cords[1][i]), min_dist)
+        man_dist = util.manhattanDistance((cords[0][i], cords[1][i]), target)
+        if man_dist == 1: ## unsolvable board
+            return max_dist
+        min_dist = min(man_dist - 1, min_dist)
     return min_dist
+
+
+
+# def blokus_cover_heuristic(state, problem):
+#     cost = 0
+#     for target in problem.targets:
+#         if state.get_position(target[0], target[1]) == -1:
+#             cost += 1
+#     return cost
+
+
 
 
 def get_block(limit, start, state):
@@ -241,8 +261,9 @@ class ClosestLocationSearch:
     """
 
     def __init__(self, board_w, board_h, piece_list, starting_point=(0, 0), targets=(0, 0)):
-        self.expanded = 0
         self.targets = targets.copy()
+        self.expanded = 0
+        self.board = Board(board_w, board_h, 1, piece_list, starting_point)
         "*** YOUR CODE HERE ***"
 
     def get_start_state(self):
@@ -250,6 +271,28 @@ class ClosestLocationSearch:
         Returns the start state for the search problem
         """
         return self.board
+
+    def is_goal_state(self, state):
+        "*** YOUR CODE HERE ***"
+        for target in self.targets:
+            if state.get_position(target[1], target[0]) == -1:
+                return False
+        return True
+
+    def get_successors(self, state):
+        """
+        state: Search state
+
+        For a given state, this should return a list of triples,
+        (successor, action, stepCost), where 'successor' is a
+        successor to the current state, 'action' is the action
+        required to get there, and 'stepCost' is the incremental
+        cost of expanding to that successor
+        """
+        # Note that for the search problem, there is only one player - #0
+        self.expanded = self.expanded + 1
+        return [(state.do_move(0, move), move) for move in state.get_legal_moves(0)]
+
 
     def solve(self):
         """
@@ -270,8 +313,50 @@ class ClosestLocationSearch:
 
         return backtrace
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        cur_state = self.board.__copy__()
+        q = util.PriorityQueue()
+        max_dist = max(cur_state.board_h, cur_state.board_w)
+        q.push(cur_state, 0)
+        prev = dict()
+        actions = []
+        prev[cur_state] = None
+        while not self.is_goal_state(cur_state):
+            cur_state = q.pop()
+            if self.is_goal_state(cur_state):
+                while not cur_state == self.get_start_state():  # build actions list from goal state
+                    cur_state, cur_move = prev[cur_state]
+                    actions.append(cur_move)
+                actions.reverse()
+                return actions
+            closest = self.find_closest_goal(cur_state)
+            for suc in self.get_successors(cur_state):
+                if suc[0] not in prev:
+                    prev[suc[0]] = (cur_state, suc[1])
+                    q.push(suc[0], self.get_score(suc, closest, max_dist))
+
+    def find_closest_goal(self, state):
+        cords = np.where(state.state != -1)
+        max_dist = max(state.board_h, state.board_w)
+        dists = [max(state.board_h, state.board_w)] * len(self.targets)
+        for j, target in enumerate(self.targets):
+            for i in range(len(cords[0])):
+                man_dist = util.manhattanDistance((cords[0][i], cords[1][i]), target)
+                if man_dist == 1: ## unsolvable board
+                    dists[j] = max_dist
+                dists[j] = min(man_dist, dists[j])
+        return self.targets[dists.index(min(dists))]
+
+    def get_score(self, suc, target, max_dist):
+        cords = np.where(suc[0].state != -1)
+        min_dist = max_dist
+        for i in range(len(cords[0])):
+            man_dist = util.manhattanDistance((cords[0][i], cords[1][i]), target)
+            if man_dist == 1:
+                man_dist = max_dist
+            min_dist = min(min_dist, man_dist)
+        return min_dist
+
+
 
 
 class MiniContestSearch:
