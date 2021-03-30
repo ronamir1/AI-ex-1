@@ -113,19 +113,20 @@ def blokus_corners_heuristic(state, problem):
     inadmissible or inconsistent heuristics may find optimal solutions, so be careful.
     """
     "*** YOUR CODE HERE ***"
-    cost = 0
-    limit = min(state.board_h, state.board_w)
-    limit = int(np.round(limit / 2))
-    to_comp = np.full((limit, limit), -1)
-    for target in problem.targets:
-        if state.get_position(target[1], target[0]) != -1:
-            continue
-        corner = get_corner(limit, target, state)
-        if np.array_equal(corner, to_comp):
-            cost += limit
-        else:
-            cost += 1
-    return cost
+    return blokus_cover_heuristic(state, problem)
+    # cost = 0
+    # limit = min(state.board_h, state.board_w)
+    # limit = int(np.round(limit / 2))
+    # to_comp = np.full((limit, limit), -1)
+    # for target in problem.targets:
+    #     if state.get_position(target[1], target[0]) != -1:
+    #         continue
+    #     corner = get_corner(limit, target, state)
+    #     if np.array_equal(corner, to_comp):
+    #         cost += limit
+    #     else:
+    #         cost += 1
+    # return cost
 
 
 def get_corner(limit, start, state):
@@ -149,6 +150,7 @@ class BlokusCoverProblem(SearchProblem):
         self.targets = targets.copy()
         self.expanded = 0
         self.board = Board(board_w, board_h, 1, piece_list, starting_point)
+        self.to_add = self.targets_dist()
         "*** YOUR CODE HERE ***"
 
     def get_start_state(self):
@@ -190,21 +192,39 @@ class BlokusCoverProblem(SearchProblem):
             cost += action.piece.num_tiles
         return cost
 
+    def targets_dist(self):
+        add = 0
+        is_diff = False
+        for i in range(len(self.targets)):
+            if is_diff:
+                add += 1
+            is_diff = True
+            for j in range(i, len(self.targets)):
+                if self.targets[i][0] == self.targets[j][0] or self.targets[i][1] == self.targets[j][1]:
+                    is_diff = False
+        return add
+
 
 def blokus_cover_heuristic(state, problem):
     cost = 0
-    limit = min(state.board_h, state.board_w)
-    limit = int(np.round(limit / 2))
+    max_dist = max(state.board_w, state.board_h)
     for target in problem.targets:
         if state.get_position(target[0], target[1]) != -1:
             continue
-        block = get_block(limit, target, state)
-        to_comp = np.full(block.shape, -1)
-        if np.array_equal(block, to_comp):
-            cost += min(block.shape[0], block.shape[1])
-        else:
-            cost += 1
+        dist = min_distance(target, state, max_dist)
+        cost = max(cost, dist)
     return cost
+
+
+def min_distance(target, state, max_dist):
+    cords = np.where(state.state != -1)
+    x_goal = target[0]
+    y_goal = target[1]
+    min_dist = max_dist
+    for i in range(len(cords[0])):
+        min_dist = min(abs(x_goal - cords[0][i]), abs(y_goal - cords[1][i]), min_dist)
+    return min_dist
+
 
 def get_block(limit, start, state):
     x_1 = max(0, start[0] - limit)
