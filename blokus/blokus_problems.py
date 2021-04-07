@@ -114,15 +114,17 @@ def blokus_corners_heuristic(state, problem):
     """
     "*** YOUR CODE HERE ***"
     cost = 0
-    to_add = len(problem.targets) - 1
     max_dist = max(state.board_w, state.board_h)
+    min_dist = min(state.board_w, state.board_h)
+    dists = []
     for target in problem.targets:
-        if state.get_position(target[0], target[1]) != -1:
-            to_add -= 1
+        if state.get_position(target[1], target[0]) != -1:
             continue
         dist = min_distance(target, state, max_dist)
-        cost = max(cost, dist)
-    return cost + to_add
+        dists.append(dist)
+    if len(dists) == 0:
+        return 0
+    return min(dists) + (len(dists) - 1) * (min_dist - 1)
 
 
 class BlokusCoverProblem(SearchProblem):
@@ -171,18 +173,21 @@ class BlokusCoverProblem(SearchProblem):
             cost += action.piece.num_tiles
         return cost
 
-
 def blokus_cover_heuristic(state, problem):
-    cost = 0
-    to_add = len(problem.targets) - 1
     max_dist = max(state.board_w, state.board_h)
+    dists = []
+    missing_targets = 0
     for target in problem.targets:
-        if state.get_position(target[0], target[1]) != -1:
-            to_add -= 1
-            continue
-        dist = min_distance(target, state, max_dist)
-        cost = max(cost, dist)
-    return cost
+        if state.get_position(target[1], target[0]) == -1:
+            missing_targets += 1
+            dists.append(min_distance(target, state, max_dist))
+    if len(dists) == 0:
+        return 0
+    if max_dist + 1 in dists:
+        return max_dist + 1 + missing_targets
+    return min(dists) + missing_targets - 1
+
+
 
 
 def min_distance(target, state, max_dist):
@@ -190,7 +195,9 @@ def min_distance(target, state, max_dist):
     min_dist = max_dist
     for i in range(len(cords[0])):
         man_dist = util.manhattanDistance((cords[0][i], cords[1][i]), target)
-        if man_dist == 1:  ## unsolvable board
+        if man_dist == 1: #unsolvable board
+            return max_dist + 1
+        if man_dist == 0:  ##already found target
             return max_dist
         min_dist = min(man_dist - 1, min_dist)
     return min_dist
@@ -261,26 +268,6 @@ class ClosestLocationSearch:
         moves = greedy_best_first(self, closest_heuristic)
         return moves
 
-        # q = util.PriorityQueue()
-        # max_dist = max(cur_state.board_h, cur_state.board_w)
-        # q.push(cur_state, 0)
-        # prev = dict()
-        # actions = []
-        # prev[cur_state] = None
-        # while not self.is_goal_state(cur_state):
-        #     cur_state = q.pop()
-        #     if self.is_goal_state(cur_state):
-        #         while not cur_state == self.get_start_state():  # build actions list from goal state
-        #             cur_state, cur_move = prev[cur_state]
-        #             actions.append(cur_move)
-        #         actions.reverse()
-        #         return actions
-        #     closest = self.find_closest_goal(cur_state)
-        #     for suc in self.get_successors(cur_state):
-        #         if suc[0] not in prev:
-        #             prev[suc[0]] = (cur_state, suc[1])
-        #             q.push(suc[0], self.get_score(suc, closest, max_dist))
-
 
 def get_number_of_missing_targets(state, targets):
     n = 0
@@ -291,12 +278,12 @@ def get_number_of_missing_targets(state, targets):
 
 
 def closest_heuristic(state, p):
-    closest_target = find_closest_goal(state, p.targets)
+    closest_target, dist = find_closest_goal(state, p.targets)
     max_dist = max(state.board_w, state.board_h)
     missing_targets = get_number_of_missing_targets(state, p.targets) * max_dist
     if state.get_position(closest_target[1], closest_target[0]) != -1:
         return 0 + missing_targets
-    dist = min_distance(closest_target, state, max_dist)
+
     return dist + missing_targets
 
 def cheb_distance(c_1, c_2):
@@ -307,15 +294,20 @@ def find_closest_goal(state, targets):
     cords = np.where(state.state != -1)
     max_dist = max(state.board_h, state.board_w)
     dists = [max(state.board_h, state.board_w)] * len(targets)
+    man_dists = [max(state.board_h, state.board_w)] * len(targets)
     for j, target in enumerate(targets):
         for i in range(len(cords[0])):
-            man_dist = util.manhattanDistance((cords[0][i], cords[1][i]), target)
             cheb_dist = cheb_distance((cords[0][i], cords[1][i]), target)
-            if man_dist == 0:
+            man_dist = util.manhattanDistance((cords[0][i], cords[1][i]), target)
+            if cheb_dist == 0:
+                man_dists[j] = max_dist
                 dists[j] = max_dist
                 break
+            if man_dist == 1:
+                man_dist = max_dist
             dists[j] = min(cheb_dist, dists[j])
-    return targets[dists.index(min(dists))]
+            man_dists[j] = min(man_dist, man_dists[j])
+    return targets[dists.index(min(dists))], man_dists[dists.index(min(dists))]
 
 
 class MiniContestSearch:
@@ -323,8 +315,10 @@ class MiniContestSearch:
     Implement your contest entry here
     """
 
-    def __init__(self, board_w, board_h, piece_list, starting_point=(0, 0), targets=(0, 0)):
+    def __init__(self, board_w, board_h, piece_list, starting_point=(0, 0), targets=[(0, 0)]):
         self.targets = targets.copy()
+        self.expanded = 0
+        self.board = Board(board_w, board_h, 1, piece_list, starting_point)
         "*** YOUR CODE HERE ***"
 
     def get_start_state(self):
@@ -333,6 +327,43 @@ class MiniContestSearch:
         """
         return self.board
 
+    def is_goal_state(self, state):
+        """
+
+        """
+        for target in self.targets:
+            if state.get_position(target[1], target[0]) == -1:
+                return False
+        return True
+
+    def get_successors(self, state):
+        """
+        state: Search state
+
+        For a given state, this should return a list of triples,
+        (successor, action, stepCost), where 'successor' is a
+        successor to the current state, 'action' is the action
+        required to get there, and 'stepCost' is the incremental
+        cost of expanding to that successor
+        """
+        # Note that for the search problem, there is only one player - #0
+        self.expanded = self.expanded + 1
+        return [(state.do_move(0, move), move, move.piece.get_num_tiles()) for move in state.get_legal_moves(0)]
+
+    def get_cost_of_actions(self, actions):
+        """
+        actions: A list of actions to take
+
+        This method returns the total cost of a particular sequence of actions.  The sequence must
+        be composed of legal moves
+        """
+        cost = 0
+        for action in actions:
+            cost += action.piece.num_tiles
+        return cost
+
+
     def solve(self):
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        moves = astar(self, blokus_cover_heuristic)
+        return moves
