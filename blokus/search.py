@@ -119,7 +119,6 @@ def a_star_search(problem, heuristic=null_heuristic):
     """
     Search the node that has the lowest combined cost and heuristic first.
     """
-    "*** YOUR CODE HERE ***"
     fringe = util.PriorityQueue()
     fringe.push(SearchNode(problem.get_start_state(), []), 0)
     visited = set()
@@ -131,12 +130,17 @@ def a_star_search(problem, heuristic=null_heuristic):
             for suc in problem.get_successors(cur_node.state):
                 new_cost = cur_node.cost + suc[2]
                 # push successor to fringe with relevant list of actions
-                fringe.push(SearchNode(suc[0], cur_node.actions + [suc[1]], new_cost), new_cost + heuristic(suc[0], problem))
+                fringe.push(SearchNode(suc[0], cur_node.actions + [suc[1]], new_cost),
+                            new_cost + heuristic(suc[0], problem))
             visited.add(cur_node.state)
 
     return []  # no goal found
 
+
 def greedy_best_first(problem, heuristic):
+    """
+    Search based only on heuristic value
+    """
     fringe = util.PriorityQueue()
     fringe.push(SearchNode(problem.get_start_state(), []), 0)
     visited = set()
@@ -146,9 +150,8 @@ def greedy_best_first(problem, heuristic):
             return cur_node.actions
         if cur_node.state not in visited:
             for suc in problem.get_successors(cur_node.state):
-                new_cost = cur_node.cost + suc[2]
                 # push successor to fringe with relevant list of actions
-                fringe.push(SearchNode(suc[0], cur_node.actions + [suc[1]], new_cost), heuristic(suc[0], problem))
+                fringe.push(SearchNode(suc[0], cur_node.actions + [suc[1]]), heuristic(suc[0], problem))
             visited.add(cur_node.state)
 
     return []  # no goal found
