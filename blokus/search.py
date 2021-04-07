@@ -136,6 +136,23 @@ def a_star_search(problem, heuristic=null_heuristic):
 
     return []  # no goal found
 
+def greedy_best_first(problem, heuristic):
+    fringe = util.PriorityQueue()
+    fringe.push(SearchNode(problem.get_start_state(), []), 0)
+    visited = set()
+    while not fringe.isEmpty():
+        cur_node = fringe.pop()
+        if problem.is_goal_state(cur_node.state):  # goal state reached
+            return cur_node.actions
+        if cur_node.state not in visited:
+            for suc in problem.get_successors(cur_node.state):
+                new_cost = cur_node.cost + suc[2]
+                # push successor to fringe with relevant list of actions
+                fringe.push(SearchNode(suc[0], cur_node.actions + [suc[1]], new_cost), heuristic(suc[0], problem))
+            visited.add(cur_node.state)
+
+    return []  # no goal found
+
 
 def search(problem, fringe):
     """
