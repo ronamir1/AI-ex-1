@@ -67,6 +67,9 @@ class BlokusCornersProblem(SearchProblem):
         return self.board
 
     def is_goal_state(self, state):
+        """
+        Checks if the given state is the goal state
+        """
         for target in self.targets:
             if state.get_position(target[1], target[0]) == -1:
                 return False
@@ -101,15 +104,8 @@ class BlokusCornersProblem(SearchProblem):
 
 def blokus_corners_heuristic(state, problem):
     """
-    Your heuristic for the BlokusCornersProblem goes here.
-
-    This heuristic must be consistent to ensure correctness.  First, try to come up
-    with an admissible heuristic; almost all admissible heuristics will be consistent
-    as well.
-
-    If using A* ever finds a solution that is worse uniform cost search finds,
-    your heuristic is *not* consistent, and probably not admissible!  On the other hand,
-    inadmissible or inconsistent heuristics may find optimal solutions, so be careful.
+    this heuristic looks for the closest corner in the given state, afterwards it calculates
+    the minimal number of tiles needed to be filled in order to complete fill all of the corners.
     """
     max_dist = max(state.board_w, state.board_h)
     min_dist = min(state.board_w, state.board_h)
@@ -137,6 +133,9 @@ class BlokusCoverProblem(SearchProblem):
         return self.board
 
     def is_goal_state(self, state):
+        """
+        Checks if the given state is the goal state
+        """
         for target in self.targets:
             if state.get_position(target[1], target[0]) == -1:
                 return False
@@ -227,6 +226,9 @@ class ClosestLocationSearch:
         return self.sec_boar
 
     def is_goal_state(self, state):
+        """
+        Checks if the given state is the goal state
+        """
         for target in self.targets:
             if state.get_position(target[1], target[0]) == -1:
                 return False
