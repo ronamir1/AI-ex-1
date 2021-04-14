@@ -108,16 +108,15 @@ def blokus_corners_heuristic(state, problem):
     the minimal number of tiles needed to be filled in order to complete fill all of the corners.
     """
     max_dist = max(state.board_w, state.board_h)
-    min_dist = min(state.board_w, state.board_h)
     dists = []
     for target in problem.targets:
         if state.get_position(target[1], target[0]) != -1:
             continue
-        dist = min_distance(target, state, max_dist)
+        dist = min_distance_chebyshev(target, state, max_dist)
         dists.append(dist)
     if len(dists) == 0:
         return 0
-    return min(dists) + (len(dists) - 1) * (min_dist - 1)
+    return sum(dists)
 
 
 class BlokusCoverProblem(SearchProblem):
@@ -180,7 +179,7 @@ def blokus_cover_heuristic(state, problem):
         if state.get_position(target[1], target[0]) == -1:  # target is free
             missing_targets += 1
             dists.append(
-                min_distance(target, state, max_dist))  # add the minimal distance to that target at given state
+                min_distance_manhattan(target, state, max_dist))  # add the minimal distance to that target at given state
     if len(dists) == 0:  # all targets are full
         return 0
     if max_dist + 1 in dists:  # board at an unsolvable state, return high cost
@@ -188,7 +187,7 @@ def blokus_cover_heuristic(state, problem):
     return min(dists) + missing_targets - 1  # minimal distance out of all targets + number of other free targets
 
 
-def min_distance(target, state, max_dist):
+def min_distance_manhattan(target, state, max_dist):
     """
     Returns the minimal distance to given target from given board state
     """
@@ -196,11 +195,29 @@ def min_distance(target, state, max_dist):
     min_dist = max_dist
     for i in range(len(cords[0])):
         man_dist = util.manhattanDistance((cords[0][i], cords[1][i]), target)  # man distance from square to target
+
         if man_dist == 1:  # unsolvable board
             return max_dist + 1
         if man_dist == 0:  # already found target
             return max_dist
         min_dist = min(man_dist - 1,
+                       min_dist)  # to keep admissibility subtract 1 from man_dist since you can place pieces diagonally
+    return min_dist
+
+def min_distance_chebyshev(target, state, max_dist):
+    """
+    Returns the minimal distance to given target from given board state
+    """
+    cords = np.where(state.state != -1)  # get all full squares
+    min_dist = max_dist
+    for i in range(len(cords[0])):
+        man_dist = util.manhattanDistance((cords[0][i], cords[1][i]), target)  # man distance from square to target
+        cheb_dist = cheb_distance((cords[0][i], cords[1][i]), target)
+        if man_dist == 1:  # unsolvable board
+            return np.inf
+        if man_dist == 0:  # already found target
+            return 0
+        min_dist = min(cheb_dist,
                        min_dist)  # to keep admissibility subtract 1 from man_dist since you can place pieces diagonally
     return min_dist
 
@@ -295,7 +312,7 @@ def closest_heuristic(state, p):
     return dist + missing_targets
 
 
-def cheb_distance(c_1, c_2):
+def     cheb_distance(c_1, c_2):
     """
     chebyshev distance, same as king distance in chess
     """
